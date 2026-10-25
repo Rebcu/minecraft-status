@@ -1,0 +1,43 @@
+name: Minecraft Status
+ 
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # ogni 5 minuti (il minimo consentito da GitHub)
+  workflow_dispatch:         # permette di lanciarlo a mano dal pulsante "Run workflow"
+ 
+permissions:
+  contents: write            # serve per salvare state.json nel repository
+ 
+concurrency:
+  group: minecraft-status
+  cancel-in-progress: false
+ 
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+ 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+ 
+      - name: Installa dipendenze
+        run: pip install mcstatus requests
+ 
+      - name: Controlla il server
+        run: python check_status.py
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SERVER_ADDRESS: ClamsMC.aternos.me
+ 
+      - name: Salva lo stato
+        run: |
+          if [[ -n "$(git status --porcelain state.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state.json
+            git commit -m "Aggiorna stato server"
+            git push
+          fi
+ 
